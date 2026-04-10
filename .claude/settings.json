@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreCommit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/sardorbek.numonov/Documents/MyWorkspace/codebase/llm-line-integration && python3 -m pytest tests/ -q 2>&1 | tail -5"
+          }
+        ]
+      }
+    ]
+  }
+}
