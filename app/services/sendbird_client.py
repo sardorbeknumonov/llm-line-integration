@@ -107,20 +107,13 @@ class SendbirdClient:
         """
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"{self._base_url}/group_channels/{channel_url}/messages",
+                f"{self._base_url}/group_channels/{channel_url}/messages/{message_id}",
                 headers=self._headers,
-                params={
-                    "message_id": message_id,
-                    "prev_limit": 0,
-                    "next_limit": 0,
-                },
                 timeout=10,
             )
             if resp.status_code == 200:
-                messages = resp.json().get("messages", [])
-                if messages:
-                    logger.info("[SB] Fetched message %d from %s", message_id, channel_url)
-                    return messages[0]
+                logger.info("[SB] Fetched message %d from %s", message_id, channel_url)
+                return resp.json()
             else:
                 logger.error(
                     "[SB] Get message failed: %s %s", resp.status_code, resp.text
