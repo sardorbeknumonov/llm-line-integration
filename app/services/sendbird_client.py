@@ -25,6 +25,7 @@ class SendbirdClient:
         }
         # In-memory cache: sb_user_id -> channel_url
         self._user_channels: dict[str, str] = {}
+        logger.info("[SB] Client initialized: base_url=%s bot=%s", self._base_url, self._bot_user_id)
 
     # ── User management ─────────────────────────
 

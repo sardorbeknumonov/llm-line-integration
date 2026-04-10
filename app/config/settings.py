@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
+
+# Resolve .env relative to project root (two levels up from this file)
+_ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -21,7 +25,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
     @property
     def sendbird_api_url(self) -> str:
