@@ -20,6 +20,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 
 from app.services.line_client import LineClient
+from app.services.sendbird_client import SendbirdClient
 from app.handlers.line_webhook_handler import handle_line_events
 from app.handlers.sendbird_webhook_handler import handle_sendbird_event
 
@@ -36,6 +37,7 @@ app = FastAPI(
 )
 
 line = LineClient()
+sendbird = SendbirdClient()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -96,7 +98,7 @@ async def sendbird_webhook(request: Request):
     payload = await request.json()
     logger.info("[SB] Webhook payload: %s", json.dumps(payload, ensure_ascii=False))
 
-    await handle_sendbird_event(line, payload)
+    await handle_sendbird_event(line, sendbird, payload)
 
     return {"status": "ok"}
 

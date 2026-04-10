@@ -94,6 +94,39 @@ class SendbirdClient:
                 )
                 return None
 
+    # ── Message retrieval ──────────────────────
+
+    async def get_message(
+        self, channel_url: str, message_id: int
+    ) -> dict | None:
+        """
+        Fetch a single message with extended_message_payload.
+
+        Returns the full message dict including suggested_replies,
+        agent_message_templates, manual info, etc.
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self._base_url}/group_channels/{channel_url}/messages",
+                headers=self._headers,
+                params={
+                    "message_id": message_id,
+                    "prev_limit": 0,
+                    "next_limit": 0,
+                },
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                messages = resp.json().get("messages", [])
+                if messages:
+                    logger.info("[SB] Fetched message %d from %s", message_id, channel_url)
+                    return messages[0]
+            else:
+                logger.error(
+                    "[SB] Get message failed: %s %s", resp.status_code, resp.text
+                )
+            return None
+
     # ── Messaging ───────────────────────────────
 
     async def send_message(
