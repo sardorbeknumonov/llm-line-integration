@@ -70,7 +70,7 @@ async def line_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     payload = json.loads(body)
-    logger.info("[LINE] Webhook: %d event(s)", len(payload.get("events", [])))
+    logger.info("[LINE] Webhook payload: %s", json.dumps(payload, ensure_ascii=False))
 
     await handle_line_events(line, payload.get("events", []))
 
@@ -94,7 +94,7 @@ async def sendbird_webhook(request: Request):
         → push to LINE user
     """
     payload = await request.json()
-    logger.info("[SB] Webhook received: category=%s", payload.get("category", ""))
+    logger.info("[SB] Webhook payload: %s", json.dumps(payload, ensure_ascii=False))
 
     await handle_sendbird_event(line, payload)
 
