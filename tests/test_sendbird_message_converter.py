@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from app.builders.sendbird_message_converter import convert_bot_message
+from app.builders.sendbird_message_converter import convert_bot_message, _strip_markdown
 
 
 # ── 1. Simple text (no payload) ─────────────────
@@ -271,3 +271,23 @@ def test_text_with_suggested_replies_only():
     assert msgs[0]["type"] == "text"
     assert "quickReply" in msgs[0]
     assert len(msgs[0]["quickReply"]["items"]) == 3
+
+
+# ── 11. Markdown stripping ──────────────────────
+
+def test_strip_markdown_bold():
+    assert _strip_markdown("**Pepperoni Pizza** x1") == "Pepperoni Pizza x1"
+
+
+def test_strip_markdown_mixed():
+    assert _strip_markdown("**Bold** and *italic* and `code`") == "Bold and italic and code"
+
+
+def test_strip_markdown_in_message():
+    msgs = convert_bot_message("Your **Pepperoni Pizza** is on the way!")
+    assert msgs[0]["text"] == "Your Pepperoni Pizza is on the way!"
+
+
+def test_strip_markdown_multiline():
+    text = "**Order Summary**\n- Pepperoni Pizza x1 - $10.00\n**Total:** $12.50"
+    assert _strip_markdown(text) == "Order Summary\n- Pepperoni Pizza x1 - $10.00\nTotal: $12.50"

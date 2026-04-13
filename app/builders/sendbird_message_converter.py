@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -469,8 +470,19 @@ _TOOL_HANDLERS: dict[str, Any] = {
 #  HELPERS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+def _strip_markdown(text: str) -> str:
+    """Strip Markdown formatting that LINE cannot render."""
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)   # **bold**
+    text = re.sub(r'__(.+?)__', r'\1', text)        # __bold__
+    text = re.sub(r'\*(.+?)\*', r'\1', text)        # *italic*
+    text = re.sub(r'_(.+?)_', r'\1', text)          # _italic_
+    text = re.sub(r'~~(.+?)~~', r'\1', text)        # ~~strikethrough~~
+    text = re.sub(r'`(.+?)`', r'\1', text)          # `code`
+    return text
+
+
 def _text_msg(text: str) -> dict:
-    return {"type": "text", "text": text}
+    return {"type": "text", "text": _strip_markdown(text)}
 
 
 def _safe_parse(raw: str) -> dict | None:

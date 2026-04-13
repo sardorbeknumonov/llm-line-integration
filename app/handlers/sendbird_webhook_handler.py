@@ -8,6 +8,7 @@ import logging
 from app.services.line_client import LineClient
 from app.services.sendbird_client import SendbirdClient
 from app.builders.message_converter import convert_to_line_messages
+from app.builders.sendbird_message_converter import convert_bot_message
 from app.db.database import (
     update_conversation_status,
     get_user_by_sb_id,
@@ -158,65 +159,32 @@ def _build_line_messages(
     Build LINE messages from AI Agent response.
 
     Priority:
-      1. message_data (structured JSON) → rich LINE messages via converter
-      2. extended_message_payload.suggested_replies → text + quick replies
-      3. Plain content → text message
+      1. extended_message_payload with function_calls → rich LINE messages
+         (Flex Carousels, Flex Bubbles, Quick Replies)
+      2. message_data (structured JSON) → legacy converter
+      3. extended_message_payload with suggested_replies only → text + quick replies
+      4. Plain content → text message
     """
-    # Try structured data first
+    # Priority 1: Use new converter for extended_payload with function_calls
+    if extended_payload and extended_payload.get("function_calls"):
+        messages = convert_bot_message(content, extended_payload)
+        if messages:
+            return messages
+
+    # Priority 2: Try legacy structured data
     if message_data:
         messages = convert_to_line_messages(content, message_data)
         if messages:
-            if extended_payload:
-                _attach_quick_replies(messages, extended_payload)
             return messages
 
-    # Build text message
+    # Priority 3 & 4: Text with optional suggested_replies
     if not content:
         return []
 
-    msg: dict = {"type": "text", "text": content}
-
-    # Attach suggested_replies from extended payload as quick replies
+    # Use new converter for suggested_replies without function_calls
     if extended_payload:
-        suggested = extended_payload.get("suggested_replies", [])
-        if suggested:
-            msg["quickReply"] = {
-                "items": [
-                    {
-                        "type": "action",
-                        "action": {
-                            "type": "message",
-                            "label": reply[:20],
-                            "text": reply,
-                        },
-                    }
-                    for reply in suggested[:13]  # LINE max 13
-                ]
-            }
+        messages = convert_bot_message(content, extended_payload)
+        if messages:
+            return messages
 
-    return [msg]
-
-
-def _attach_quick_replies(messages: list[dict], extended_payload: dict) -> None:
-    """Attach suggested_replies from extended_message_payload to the last LINE message."""
-    suggested = extended_payload.get("suggested_replies", [])
-    if not suggested or not messages:
-        return
-
-    last_msg = messages[-1]
-    if "quickReply" in last_msg:
-        return
-
-    last_msg["quickReply"] = {
-        "items": [
-            {
-                "type": "action",
-                "action": {
-                    "type": "message",
-                    "label": reply[:20],
-                    "text": reply,
-                },
-            }
-            for reply in suggested[:13]
-        ]
-    }
+    return [{"type": "text", "text": content}]
