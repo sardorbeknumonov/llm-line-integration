@@ -11,6 +11,7 @@ from app.builders.message_converter import convert_to_line_messages
 from app.builders.sendbird_message_converter import convert_bot_message
 from app.db.database import (
     update_conversation_status,
+    upsert_conversation,
     get_user_by_sb_id,
 )
 
@@ -36,6 +37,9 @@ async def handle_sendbird_event(
     if category == "message:ai_agent_sent":
         await _handle_ai_agent_message(line, sendbird, payload)
 
+    elif category == "message:user_sent":
+        await _handle_user_sent_on_closed(sendbird, payload)
+
     elif category == "conversation:started":
         _handle_conversation_started(payload)
 
@@ -44,6 +48,71 @@ async def handle_sendbird_event(
 
     else:
         logger.debug("[SB] Ignoring webhook category: %s", category)
+
+
+# ── Re-send on closed conversation ─────────────────
+
+
+async def _handle_user_sent_on_closed(
+    sendbird: SendbirdClient, payload: dict
+) -> None:
+    """
+    Handle message:user_sent on a closed conversation.
+
+    When a user sends a message to a closed channel, the AI Agent won't
+    respond. Detect this, create a new channel, and re-send the message.
+    """
+    data = payload.get("data", {})
+    conversation = data.get("conversation", {})
+    status = conversation.get("status", "")
+    sb_user_id = conversation.get("user_id", "")
+    old_channel_url = conversation.get("channel_url", "")
+    message_content = data.get("message", {}).get("content", "")
+
+    if status != "closed":
+        logger.debug("[SB] message:user_sent on active conversation, ignoring")
+        return
+
+    if not sb_user_id or not message_content:
+        logger.warning("[SB] message:user_sent missing user_id or content")
+        return
+
+    logger.info(
+        "[SB] User %s sent message on closed channel %s — re-routing to new channel",
+        sb_user_id, old_channel_url[:30],
+    )
+
+    # Invalidate cached channel so a new one is created
+    sendbird.invalidate_channel_cache(sb_user_id)
+
+    # Update local DB
+    update_conversation_status(old_channel_url, "closed")
+
+    # Create new channel
+    new_channel_url = await sendbird.get_or_create_channel(sb_user_id)
+    if not new_channel_url:
+        logger.error("[SB] Failed to create new channel for %s", sb_user_id)
+        return
+
+    # Derive line_user_id for DB record
+    line_user_id = sb_user_id.removeprefix("line_") if sb_user_id.startswith("line_") else ""
+    if line_user_id:
+        upsert_conversation(
+            channel_url=new_channel_url,
+            line_user_id=line_user_id,
+            sb_user_id=sb_user_id,
+            status="pending",
+        )
+
+    # Re-send the message to the new channel
+    sent = await sendbird.send_message(new_channel_url, sb_user_id, message_content)
+    if sent:
+        logger.info(
+            "[SB] Re-sent message to new channel: user=%s channel=%s msg='%s'",
+            sb_user_id, new_channel_url[:30], message_content[:80],
+        )
+    else:
+        logger.error("[SB] Failed to re-send message for %s", sb_user_id)
 
 
 # ── Conversation lifecycle ─────────────────────────

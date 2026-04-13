@@ -25,7 +25,7 @@ from app.services.sendbird_client import SendbirdClient
 from app.handlers.line_webhook_handler import handle_line_events
 from app.handlers.sendbird_webhook_handler import handle_sendbird_event
 from app.handlers.tool_call_handler import handle_tool_call
-from app.db.database import init_db
+from app.db.database import init_db, update_conversation_status
 
 logging.basicConfig(
     level=logging.INFO,
@@ -133,6 +133,27 @@ async def tool_call(request: Request):
 
     result = handle_tool_call(tool, arguments)
     return result
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  CONVERSATION STATUS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.put("/conversations/{channel_url}/close")
+async def close_conversation(channel_url: str):
+    """
+    Close the AI Agent conversation on a group channel.
+
+    Calls Sendbird API to close the conversation and updates the local DB.
+    """
+    result = await sendbird.update_conversation_status(channel_url, "closed")
+    if result is None:
+        raise HTTPException(status_code=502, detail="Failed to close conversation on Sendbird")
+
+    update_conversation_status(channel_url, "closed")
+    logger.info("[API] Conversation closed: %s", channel_url[:30])
+
+    return {"status": "closed", "channel_url": channel_url, "sendbird_response": result}
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

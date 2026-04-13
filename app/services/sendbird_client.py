@@ -60,6 +60,12 @@ class SendbirdClient:
 
     # ── Channel management ──────────────────────
 
+    def invalidate_channel_cache(self, sb_user_id: str) -> None:
+        """Remove cached channel_url for a user so the next call creates a new one."""
+        removed = self._user_channels.pop(sb_user_id, None)
+        if removed:
+            logger.info("[SB] Cache invalidated for user %s (was %s)", sb_user_id, removed[:30])
+
     async def get_or_create_channel(self, sb_user_id: str) -> str | None:
         """
         Get or create a messenger channel via the AI Agent Messenger API.
@@ -127,6 +133,38 @@ class SendbirdClient:
                     "[SB] Get message failed: %s %s", resp.status_code, resp.text
                 )
             return None
+
+    # ── Conversation status ─────────────────────
+
+    async def update_conversation_status(
+        self, channel_url: str, status: str
+    ) -> dict | None:
+        """
+        Update the AI Agent conversation status on a group channel.
+
+        Uses PUT /v3/group_channels/{channel_url}/ai_agent/conversation_status
+        Status values: 'open', 'closed'
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.put(
+                f"{self._base_url}/group_channels/{channel_url}/ai_agent/conversation_status",
+                headers=self._headers,
+                json={"status": status},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                logger.info(
+                    "[SB] Conversation status updated: %s -> %s",
+                    channel_url[:30], status,
+                )
+                return data
+            else:
+                logger.error(
+                    "[SB] Update conversation status failed: %s %s",
+                    resp.status_code, resp.text,
+                )
+                return None
 
     # ── Messaging ───────────────────────────────
 
