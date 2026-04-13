@@ -124,11 +124,7 @@ def _handle_search_restaurants(text: str, data: dict) -> list[dict]:
     messages = []
     if text:
         messages.append(_text_msg(text))
-    messages.append({
-        "type": "flex",
-        "altText": f"Found {len(bubbles)} restaurant(s)",
-        "contents": {"type": "carousel", "contents": bubbles},
-    })
+    messages.append(_flex_msg(f"Found {len(bubbles)} restaurant(s)", {"type": "carousel", "contents": bubbles}))
     return messages
 
 
@@ -200,11 +196,7 @@ def _handle_get_restaurant_menu(text: str, data: dict) -> list[dict]:
     messages = []
     if text:
         messages.append(_text_msg(text))
-    messages.append({
-        "type": "flex",
-        "altText": f"{restaurant_name} menu — {len(bubbles)} item(s)",
-        "contents": {"type": "carousel", "contents": bubbles},
-    })
+    messages.append(_flex_msg(f"{restaurant_name} menu — {len(bubbles)} item(s)", {"type": "carousel", "contents": bubbles}))
     return messages
 
 
@@ -307,11 +299,7 @@ def _handle_get_order_summary(text: str, data: dict) -> list[dict]:
     messages = []
     if text:
         messages.append(_text_msg(text))
-    messages.append({
-        "type": "flex",
-        "altText": f"Order summary — ${total:.2f}",
-        "contents": bubble,
-    })
+    messages.append(_flex_msg(f"Order summary — ${total:.2f}", bubble))
     return messages
 
 
@@ -375,11 +363,7 @@ def _handle_confirm_payment(text: str, data: dict) -> list[dict]:
     messages = []
     if text:
         messages.append(_text_msg(text))
-    messages.append({
-        "type": "flex",
-        "altText": f"Payment confirmed — {order_id}",
-        "contents": bubble,
-    })
+    messages.append(_flex_msg(f"Payment confirmed — {order_id}", bubble))
     return messages
 
 
@@ -426,7 +410,7 @@ def _handle_get_order_status(text: str, data: dict) -> list[dict]:
     messages = []
     if text:
         messages.append(_text_msg(text))
-    messages.append({"type": "flex", "altText": f"Order {order_id} — {status}", "contents": bubble})
+    messages.append(_flex_msg(f"Order {order_id} — {status}", bubble))
     return messages
 
 
@@ -482,7 +466,8 @@ def _strip_markdown(text: str) -> str:
 
 
 def _text_msg(text: str) -> dict:
-    return {"type": "text", "text": _strip_markdown(text)}
+    cleaned = _strip_markdown(text) or "..."
+    return {"type": "text", "text": cleaned}
 
 
 def _safe_parse(raw: str) -> dict | None:
@@ -490,6 +475,10 @@ def _safe_parse(raw: str) -> dict | None:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return None
+
+
+def _flex_msg(alt_text: str, contents: dict) -> dict:
+    return {"type": "flex", "altText": alt_text[:400], "contents": contents}
 
 
 def _attach_quick_reply(message: dict, options: list[str]) -> None:
@@ -501,7 +490,7 @@ def _attach_quick_reply(message: dict, options: list[str]) -> None:
             "action": {
                 "type": "message",
                 "label": option[:20],  # LINE max label 20 chars
-                "text": option,
+                "text": option[:300],  # LINE max text 300 chars
             },
         })
     if items:

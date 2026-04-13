@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import base64
+import json
 import logging
 
 import httpx
@@ -55,14 +56,22 @@ class LineClient:
 
     async def push(self, to: str, messages: list[dict]) -> dict:
         """Push message to a user (costs quota)."""
+        payload = {"to": to, "messages": messages[:5]}
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 f"{LINE_API_BASE}/push",
                 headers=self._headers,
-                json={"to": to, "messages": messages[:5]},
+                json=payload,
                 timeout=10,
             )
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                logger.error(
+                    "LINE push failed (%d): %s\nPayload sent:\n%s",
+                    resp.status_code,
+                    resp.text,
+                    json.dumps(payload, indent=2, ensure_ascii=False),
+                )
+                resp.raise_for_status()
             logger.info("LINE push sent to %s (%d messages)", to[:8], len(messages))
             return resp.json()
 
