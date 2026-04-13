@@ -549,31 +549,31 @@ DELIVERY_FEE = 2.50
 
 @_register("add_to_cart")
 def add_to_cart(args: dict) -> dict:
-    """Add an item to the user's cart."""
+    """Add a food item to the user's cart."""
     user_id = args.get("user_id", "")
-    item_id = args.get("item_id", "")
+    food_id = args.get("food_id", "")
     restaurant_id = args.get("restaurant_id", "")
     quantity = args.get("quantity", 1)
     special_requests = args.get("special_requests", "")
 
-    # Find the item in our menu data
+    # Find the food in our menu data
     menu = _MENUS.get(restaurant_id)
     if not menu:
         return {"error": f"Restaurant '{restaurant_id}' not found"}
 
-    item = next((i for i in menu["items"] if i["id"] == item_id), None)
-    if not item:
-        return {"error": f"Item '{item_id}' not found in restaurant '{restaurant_id}'"}
+    food = next((f for f in menu["items"] if f["id"] == food_id), None)
+    if not food:
+        return {"error": f"Food '{food_id}' not found in restaurant '{restaurant_id}'"}
 
     cart_item = {
-        "item_id": item["id"],
-        "name": item["name"],
-        "price": item["price"],
+        "food_id": food["id"],
+        "name": food["name"],
+        "price": food["price"],
         "quantity": quantity,
         "special_requests": special_requests,
         "restaurant_id": restaurant_id,
         "restaurant_name": menu["restaurant_name"],
-        "image_url": item["image_url"],
+        "image_url": food["image_url"],
     }
 
     if user_id not in _carts:
