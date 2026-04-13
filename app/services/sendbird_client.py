@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 import httpx
@@ -113,8 +114,14 @@ class SendbirdClient:
                 timeout=10,
             )
             if resp.status_code == 200:
-                logger.info("[SB] Fetched message %d from %s", message_id, channel_url)
-                return resp.json()
+                data = resp.json()
+                logger.info(
+                    "[SB] Fetched message %d from %s — payload:\n%s",
+                    message_id,
+                    channel_url,
+                    json.dumps(data, indent=2, ensure_ascii=False),
+                )
+                return data
             else:
                 logger.error(
                     "[SB] Get message failed: %s %s", resp.status_code, resp.text
