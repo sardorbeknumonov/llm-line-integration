@@ -24,6 +24,7 @@ from app.services.line_client import LineClient
 from app.services.sendbird_client import SendbirdClient
 from app.handlers.line_webhook_handler import handle_line_events
 from app.handlers.sendbird_webhook_handler import handle_sendbird_event
+from app.handlers.tool_call_handler import handle_tool_call
 from app.db.database import init_db
 
 logging.basicConfig(
@@ -108,6 +109,30 @@ async def sendbird_webhook(request: Request):
     await handle_sendbird_event(line, sendbird, payload)
 
     return {"status": "ok"}
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  TOOL CALL — LLM Function Calling Endpoint
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.post("/tool-call")
+async def tool_call(request: Request):
+    """
+    Execute a tool call from the LLM and return mock JSON.
+
+    Request body:
+        {"tool": "get_food_categories", "arguments": {"user_id": "margaret_001"}}
+
+    Returns the tool's mock response directly.
+    """
+    payload = await request.json()
+    tool = payload.get("tool", "")
+    arguments = payload.get("arguments", {})
+
+    logger.info("[TOOL] %s args=%s", tool, json.dumps(arguments, ensure_ascii=False))
+
+    result = handle_tool_call(tool, arguments)
+    return result
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
