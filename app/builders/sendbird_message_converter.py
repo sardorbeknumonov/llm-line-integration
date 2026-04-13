@@ -79,6 +79,24 @@ def _handle_search_restaurants(text: str, data: dict) -> list[dict]:
 
     bubbles = []
     for r in restaurants[:12]:
+        title = r.get("title") or r.get("name", "Unknown")
+        # Build description from either new format or old format fields
+        description = r.get("description", "")
+        if not description:
+            parts = []
+            if r.get("rating"):
+                parts.append(f"⭐ {r['rating']}")
+            if r.get("delivery_time_min"):
+                parts.append(f"{r['delivery_time_min']} min")
+            if r.get("price_from"):
+                parts.append(f"From ${r['price_from']:.2f}")
+            description = " · ".join(parts) if parts else title
+
+        body_contents = [
+            {"type": "text", "text": title, "weight": "bold", "size": "lg", "wrap": True, "maxLines": 2},
+            {"type": "text", "text": description, "size": "sm", "color": "#888888", "wrap": True},
+        ]
+
         bubble: dict = {
             "type": "bubble",
             "size": "kilo",
@@ -86,10 +104,7 @@ def _handle_search_restaurants(text: str, data: dict) -> list[dict]:
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "sm",
-                "contents": [
-                    {"type": "text", "text": r.get("title") or r.get("name", ""), "weight": "bold", "size": "lg", "wrap": True, "maxLines": 2},
-                    {"type": "text", "text": r.get("description", ""), "size": "sm", "color": "#888888", "wrap": True},
-                ],
+                "contents": body_contents,
             },
             "footer": {
                 "type": "box",
@@ -101,7 +116,7 @@ def _handle_search_restaurants(text: str, data: dict) -> list[dict]:
                         "action": {
                             "type": "message",
                             "label": r.get("cta_label", "View Menu")[:20],
-                            "text": r.get("title") or r.get("name", ""),
+                            "text": title,
                         },
                         "style": "primary",
                         "color": "#E74C3C",
@@ -137,8 +152,9 @@ def _handle_get_restaurant_menu(text: str, data: dict) -> list[dict]:
 
     bubbles = []
     for item in items[:12]:
+        item_name = item.get("name", "") or "Menu Item"
         body_contents = [
-            {"type": "text", "text": item.get("name", ""), "weight": "bold", "size": "lg", "wrap": True, "maxLines": 2},
+            {"type": "text", "text": item_name, "weight": "bold", "size": "lg", "wrap": True, "maxLines": 2},
         ]
         desc = item.get("description", "")
         if desc:
@@ -157,7 +173,6 @@ def _handle_get_restaurant_menu(text: str, data: dict) -> list[dict]:
                 ],
             })
 
-        item_name = item.get("name", "")
         bubble: dict = {
             "type": "bubble",
             "size": "kilo",
