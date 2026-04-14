@@ -40,6 +40,12 @@ def handle_tool_call(tool: str, arguments: dict) -> dict:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
+def clear_user_state(user_id: str) -> None:
+    """Clear cart and order state for a user. Called when conversation closes."""
+    _carts.pop(user_id, None)
+    _user_orders.pop(user_id, None)
+
+
 @_register("get_food_categories")
 def get_food_categories(args: dict) -> dict:
     """Return available food categories."""
@@ -721,10 +727,12 @@ def confirm_payment(args: dict) -> dict:
 
     order = _orders.get(order_id)
 
+    # Always clear cart on payment confirmation
+    clear_user_state(user_id)
+
     if order:
         order["status"] = "confirmed"
         order["paid_at"] = datetime.now(timezone.utc).isoformat()
-        _carts.pop(user_id, None)
         amount = order["total"]
         payment_method = order.get("payment_method", "line_pay")
         restaurant_name = order["restaurant_name"]

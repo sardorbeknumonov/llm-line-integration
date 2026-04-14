@@ -9,6 +9,7 @@ from app.services.line_client import LineClient
 from app.services.sendbird_client import SendbirdClient
 from app.builders.message_converter import convert_to_line_messages
 from app.builders.sendbird_message_converter import convert_bot_message
+from app.handlers.tool_call_handler import clear_user_state
 from app.db.database import (
     update_conversation_status,
     upsert_conversation,
@@ -82,6 +83,9 @@ async def _handle_user_sent_on_closed(
         sb_user_id, old_channel_url[:30],
     )
 
+    # Clear cart/order state for fresh conversation
+    clear_user_state(sb_user_id)
+
     # Invalidate cached channel so a new one is created
     sendbird.invalidate_channel_cache(sb_user_id)
 
@@ -132,16 +136,23 @@ def _handle_conversation_started(payload: dict) -> None:
 
 
 def _handle_conversation_closed(payload: dict) -> None:
-    """Mark conversation as closed in the DB."""
+    """Mark conversation as closed in the DB and clear user cart/order state."""
     data = payload.get("data", {})
-    channel_url = data.get("conversation", {}).get("channel_url", "")
+    conversation = data.get("conversation", {})
+    channel_url = conversation.get("channel_url", "")
+    sb_user_id = conversation.get("user_id", "")
 
     if not channel_url:
         logger.warning("[SB] CONVERSATION_CLOSED missing channel_url")
         return
 
     update_conversation_status(channel_url, "closed")
-    logger.info("[SB] Conversation closed: %s", channel_url[:30])
+
+    if sb_user_id:
+        clear_user_state(sb_user_id)
+        logger.info("[SB] Conversation closed: %s — cleared cart for %s", channel_url[:30], sb_user_id)
+    else:
+        logger.info("[SB] Conversation closed: %s", channel_url[:30])
 
 
 # ── AI Agent message → LINE ───────────────────────
