@@ -45,7 +45,7 @@ async def handle_sendbird_event(
         _handle_conversation_started(payload)
 
     elif category == "conversation:closed":
-        _handle_conversation_closed(payload)
+        await _handle_conversation_closed(line, payload)
 
     else:
         logger.debug("[SB] Ignoring webhook category: %s", category)
@@ -135,12 +135,13 @@ def _handle_conversation_started(payload: dict) -> None:
     logger.info("[SB] Conversation started: %s", channel_url[:30])
 
 
-def _handle_conversation_closed(payload: dict) -> None:
-    """Mark conversation as closed in the DB and clear user cart/order state."""
+async def _handle_conversation_closed(line: LineClient, payload: dict) -> None:
+    """Mark conversation as closed, clear cart, and notify LINE user."""
     data = payload.get("data", {})
     conversation = data.get("conversation", {})
     channel_url = conversation.get("channel_url", "")
     sb_user_id = conversation.get("user_id", "")
+    conversation_id = conversation.get("id", "")
 
     if not channel_url:
         logger.warning("[SB] CONVERSATION_CLOSED missing channel_url")
@@ -150,9 +151,20 @@ def _handle_conversation_closed(payload: dict) -> None:
 
     if sb_user_id:
         clear_user_state(sb_user_id)
-        logger.info("[SB] Conversation closed: %s — cleared cart for %s", channel_url[:30], sb_user_id)
-    else:
-        logger.info("[SB] Conversation closed: %s", channel_url[:30])
+
+    # Send closing message to LINE user
+    if sb_user_id and sb_user_id.startswith("line_"):
+        line_user_id = sb_user_id.removeprefix("line_")
+        try:
+            await line.push(line_user_id, [{
+                "type": "text",
+                "text": f"This conversation (#{conversation_id}) has been closed. Send a new message to start a fresh conversation.",
+            }])
+            logger.info("[SB->LINE] Sent close notification to %s (conv=%s)", line_user_id[:8], conversation_id)
+        except Exception:
+            logger.exception("[SB->LINE] Failed to send close notification to %s", line_user_id[:8])
+
+    logger.info("[SB] Conversation closed: %s (conv=%s) — cleared cart for %s", channel_url[:30], conversation_id, sb_user_id)
 
 
 # ── AI Agent message → LINE ───────────────────────
