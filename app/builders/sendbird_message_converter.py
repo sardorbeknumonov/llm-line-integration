@@ -292,7 +292,7 @@ def _handle_get_order_summary(text: str, data: dict) -> list[dict]:
     footer_buttons: list[dict] = [
         {
             "type": "button",
-            "action": {"type": "message", "label": "\u2705 Confirm Order", "text": "Yes"},
+            "action": {"type": "message", "label": "\u2705 Confirm Order", "text": "Confirm order"},
             "style": "primary",
             "color": "#27AE60",
             "height": "sm",
